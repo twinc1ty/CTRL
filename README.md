@@ -8,6 +8,7 @@
 ╚██████╗   ██║   ██║  ██║███████╗
  ╚═════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
 ```
+
 </div>
 
 <div align="center">
@@ -64,16 +65,16 @@ CLI (vault)
 ┌──────────────────────────────────────────┐
 │               API Server                 │
 │  requestID · auth · audit · rateLimit    │
-│  ┌──────────┐  ┌────────┐  ┌──────────┐ │
-│  │   Auth   │  │ Policy │  │  Secret  │ │
-│  │ Token    │  │ Engine │  │  Engine  │ │
-│  │ AppRole  │  │ (ACL)  │  │ KV/PEM   │ │
-│  └──────────┘  └────────┘  └──────────┘ │
-│  ┌──────────────────────────────────┐   │
-│  │          Crypto Layer            │   │
-│  │  Root Key → KEK (HKDF) → DEK    │   │
-│  │  Shamir SS · Seal/Unseal FSM    │   │
-│  └──────────────────────────────────┘   │
+│  ┌──────────┐  ┌────────┐  ┌──────────┐  │
+│  │   Auth   │  │ Policy │  │  Secret  │  │
+│  │ Token    │  │ Engine │  │  Engine  │  │
+│  │ AppRole  │  │ (ACL)  │  │ KV/PEM   │  │
+│  └──────────┘  └────────┘  └──────────┘  │
+│  ┌──────────────────────────────────┐    │
+│  │          Crypto Layer            │    │
+│  │  Root Key → KEK (HKDF) → DEK     │    │
+│  │  Shamir SS · Seal/Unseal FSM     │    │
+│  └──────────────────────────────────┘    │
 └────────────────────┬─────────────────────┘
                      │
               ┌──────┴──────┐
@@ -254,11 +255,11 @@ vault kv get secret/myapp/db --field=password --format=raw  # raw value
 
 ### Environment Variables
 
-| Variable       | Description                      | Default                  |
-|----------------|----------------------------------|--------------------------|
-| `VAULT_ADDR`   | Server address                   | `http://127.0.0.1:8200`  |
-| `VAULT_TOKEN`  | Auth token                       | from `~/.secretvault/config.yaml` |
-| `VAULT_CACERT` | Path to CA certificate (TLS)     | —                        |
+| Variable       | Description                  | Default                           |
+| -------------- | ---------------------------- | --------------------------------- |
+| `VAULT_ADDR`   | Server address               | `http://127.0.0.1:8200`           |
+| `VAULT_TOKEN`  | Auth token                   | from `~/.secretvault/config.yaml` |
+| `VAULT_CACERT` | Path to CA certificate (TLS) | —                                 |
 
 ---
 
@@ -268,63 +269,63 @@ All routes are under `/v1/`. Authenticated routes require `X-Vault-Token: <token
 
 ### System
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/v1/sys/init` | Initialize vault, generate unseal shards |
-| `GET` | `/v1/sys/seal-status` | Check sealed/unsealed state |
-| `POST` | `/v1/sys/unseal` | Submit one unseal shard |
-| `PUT` | `/v1/sys/seal` | Seal the vault |
-| `GET` | `/v1/sys/health` | Health check |
-| `GET` | `/v1/sys/audit-log` | Query audit log (requires `sudo`) |
-| `GET` | `/metrics` | Prometheus metrics |
+| Method | Path                  | Description                              |
+| ------ | --------------------- | ---------------------------------------- |
+| `POST` | `/v1/sys/init`        | Initialize vault, generate unseal shards |
+| `GET`  | `/v1/sys/seal-status` | Check sealed/unsealed state              |
+| `POST` | `/v1/sys/unseal`      | Submit one unseal shard                  |
+| `PUT`  | `/v1/sys/seal`        | Seal the vault                           |
+| `GET`  | `/v1/sys/health`      | Health check                             |
+| `GET`  | `/v1/sys/audit-log`   | Query audit log (requires `sudo`)        |
+| `GET`  | `/metrics`            | Prometheus metrics                       |
 
 ### Auth
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/v1/auth/token/create` | Create a child token |
-| `POST` | `/v1/auth/token/revoke` | Revoke a token (cascades to children) |
-| `GET`  | `/v1/auth/token/lookup-self` | Look up current token |
-| `POST` | `/v1/auth/token/renew-self` | Renew a renewable token |
-| `POST` | `/v1/auth/approle/role` | Create/update an AppRole |
-| `GET`  | `/v1/auth/approle/role/:name/role-id` | Get role ID |
-| `POST` | `/v1/auth/approle/role/:name/secret-id` | Generate secret ID |
-| `POST` | `/v1/auth/approle/login` | Login with role ID + secret ID |
+| Method | Path                                    | Description                           |
+| ------ | --------------------------------------- | ------------------------------------- |
+| `POST` | `/v1/auth/token/create`                 | Create a child token                  |
+| `POST` | `/v1/auth/token/revoke`                 | Revoke a token (cascades to children) |
+| `GET`  | `/v1/auth/token/lookup-self`            | Look up current token                 |
+| `POST` | `/v1/auth/token/renew-self`             | Renew a renewable token               |
+| `POST` | `/v1/auth/approle/role`                 | Create/update an AppRole              |
+| `GET`  | `/v1/auth/approle/role/:name/role-id`   | Get role ID                           |
+| `POST` | `/v1/auth/approle/role/:name/secret-id` | Generate secret ID                    |
+| `POST` | `/v1/auth/approle/login`                | Login with role ID + secret ID        |
 
 ### Secrets
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST`   | `/v1/secret/data/*path` | Write a secret |
-| `GET`    | `/v1/secret/data/*path?version=N` | Read a secret |
-| `DELETE` | `/v1/secret/data/*path` | Soft-delete versions |
-| `GET`    | `/v1/secret/metadata/*path?list=true` | List secrets |
-| `GET`    | `/v1/secret/metadata/*path` | Get version metadata |
-| `DELETE` | `/v1/secret/destroy/*path` | Permanently destroy versions |
+| Method   | Path                                  | Description                  |
+| -------- | ------------------------------------- | ---------------------------- |
+| `POST`   | `/v1/secret/data/*path`               | Write a secret               |
+| `GET`    | `/v1/secret/data/*path?version=N`     | Read a secret                |
+| `DELETE` | `/v1/secret/data/*path`               | Soft-delete versions         |
+| `GET`    | `/v1/secret/metadata/*path?list=true` | List secrets                 |
+| `GET`    | `/v1/secret/metadata/*path`           | Get version metadata         |
+| `DELETE` | `/v1/secret/destroy/*path`            | Permanently destroy versions |
 
 ### Policies
 
-| Method | Path | Description |
-|--------|------|-------------|
+| Method   | Path                   | Description          |
+| -------- | ---------------------- | -------------------- |
 | `POST`   | `/v1/sys/policy/:name` | Create/update policy |
-| `GET`    | `/v1/sys/policy/:name` | Read policy |
-| `DELETE` | `/v1/sys/policy/:name` | Delete policy |
-| `GET`    | `/v1/sys/policy` | List all policies |
+| `GET`    | `/v1/sys/policy/:name` | Read policy          |
+| `DELETE` | `/v1/sys/policy/:name` | Delete policy        |
+| `GET`    | `/v1/sys/policy`       | List all policies    |
 
 ---
 
 ## Security Model
 
-| Property | Implementation |
-|----------|---------------|
-| **Secrets unreadable at rest** | AES-256-GCM with per-secret DEKs; KEK held in RAM only |
-| **No single point of key compromise** | Shamir's SS: threshold of operators required to unseal |
-| **Token leaks can't raid the DB** | SHA-256 hashes only; plaintext shown once at creation |
-| **Tamper-evident audit trail** | Postgres `BEFORE UPDATE/DELETE` trigger on `audit_log` rejects all mutations |
-| **Least-privilege access** | Path-glob policies; tokens limited to declared capabilities |
-| **Short-lived machine credentials** | AppRole secret IDs expire by TTL or use count |
-| **Rotation without downtime** | Versioned secrets: new version atomic; old versions preserved |
-| **Secret values never leave encrypted** | Audit log records only token hash, path, and status — never values |
+| Property                                | Implementation                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| **Secrets unreadable at rest**          | AES-256-GCM with per-secret DEKs; KEK held in RAM only                       |
+| **No single point of key compromise**   | Shamir's SS: threshold of operators required to unseal                       |
+| **Token leaks can't raid the DB**       | SHA-256 hashes only; plaintext shown once at creation                        |
+| **Tamper-evident audit trail**          | Postgres `BEFORE UPDATE/DELETE` trigger on `audit_log` rejects all mutations |
+| **Least-privilege access**              | Path-glob policies; tokens limited to declared capabilities                  |
+| **Short-lived machine credentials**     | AppRole secret IDs expire by TTL or use count                                |
+| **Rotation without downtime**           | Versioned secrets: new version atomic; old versions preserved                |
+| **Secret values never leave encrypted** | Audit log records only token hash, path, and status — never values           |
 
 ### Seal / Unseal
 
@@ -343,11 +344,11 @@ SEALED again
 **`config.yaml`:**
 
 ```yaml
-listen_addr:      ":8200"
-db_url:           "postgres://user:pass@localhost:5432/ctrl?sslmode=disable"
+listen_addr: ":8200"
+db_url: "postgres://user:pass@localhost:5432/ctrl?sslmode=disable"
 unseal_threshold: 3
-migrations_dir:   "migrations"
-log_level:        "info"
+migrations_dir: "migrations"
+log_level: "info"
 
 # TLS (recommended for production)
 # tls_cert: "/path/to/cert.pem"
@@ -357,8 +358,8 @@ log_level:        "info"
 **CLI config (`~/.secretvault/config.yaml`):**
 
 ```yaml
-address:    "https://vault.internal:8200"
-token:      "svt_..."
+address: "https://vault.internal:8200"
+token: "svt_..."
 tls_ca_cert: "/path/to/ca.pem"
 ```
 
@@ -440,16 +441,16 @@ CTRL/
 
 ## Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `go stdlib crypto` | AES-GCM · HKDF · SHA-256 — no third-party crypto |
-| `github.com/go-chi/chi/v5` | HTTP router |
-| `github.com/spf13/cobra` | CLI framework |
-| `github.com/jackc/pgx/v5` | PostgreSQL driver + connection pool |
-| `github.com/golang-migrate/migrate/v4` | SQL migration runner |
-| `github.com/rs/zerolog` | Zero-allocation structured logging |
-| `github.com/prometheus/client_golang` | Prometheus metrics |
-| `gopkg.in/yaml.v3` | YAML config parsing |
+| Package                                | Purpose                                          |
+| -------------------------------------- | ------------------------------------------------ |
+| `go stdlib crypto`                     | AES-GCM · HKDF · SHA-256 — no third-party crypto |
+| `github.com/go-chi/chi/v5`             | HTTP router                                      |
+| `github.com/spf13/cobra`               | CLI framework                                    |
+| `github.com/jackc/pgx/v5`              | PostgreSQL driver + connection pool              |
+| `github.com/golang-migrate/migrate/v4` | SQL migration runner                             |
+| `github.com/rs/zerolog`                | Zero-allocation structured logging               |
+| `github.com/prometheus/client_golang`  | Prometheus metrics                               |
+| `gopkg.in/yaml.v3`                     | YAML config parsing                              |
 
 ---
 
