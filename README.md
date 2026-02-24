@@ -11,6 +11,7 @@
 </div>
 
 <div align="center">
+ 
 **Self-hosted secrets lifecycle manager with envelope encryption, policy-driven access, and a tamper-evident audit trail.**
 
 [![Build](https://img.shields.io/badge/build-passing-00fff7?style=flat-square&logo=go&logoColor=black)](https://github.com/twinc1ty/CTRL)
