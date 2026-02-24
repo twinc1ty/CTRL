@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS audit_log;
+DROP TABLE IF EXISTS approle_secrets;
+DROP TABLE IF EXISTS approle_roles;
+DROP TABLE IF EXISTS tokens;
+DROP TABLE IF EXISTS secret_versions;
+DROP TABLE IF EXISTS secrets;
+DROP TABLE IF EXISTS policies;
+DROP TABLE IF EXISTS vault_init;
+DROP FUNCTION IF EXISTS audit_log_immutable;

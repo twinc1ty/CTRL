@@ -1,0 +1,20 @@
+# SecretVault Server Configuration
+
+# Address the API server listens on
+listen_addr: ":8200"
+
+# TLS certificate and key files (optional; omit for plain HTTP in dev)
+# tls_cert: "/path/to/cert.pem"
+# tls_key: "/path/to/key.pem"
+
+# PostgreSQL connection string
+db_url: "postgres://user:password@localhost:5432/secretvault?sslmode=disable"
+
+# Number of unseal key shards required to unseal the vault
+unseal_threshold: 3
+
+# Path to the SQL migration files directory
+migrations_dir: "migrations"
+
+# Log level: debug, info, warn, error
+log_level: "info"
