@@ -1,7 +1,7 @@
 # SecretVault — Implementation Plan
 
 ## Context
-A workplace security escalation requiring full rotation of secrets (env vars, PEM/TLS keys, API keys) prompted the need for a purpose-built secrets manager. This project implements a Vault-inspired system with envelope encryption, access policies, audit logging, and auth — giving the team a secure, auditable, self-hosted secrets lifecycle manager.
+In February, 2026 there occurred an incident at my workplace which eventually caused the compromise of all env files, tokens and secrets in general. We had no secrets Manager in place, and most of them were shared over Slack. After that incident the need for a Secrets Manager inspired me to study for such a project and build CTRL. This project implements a Vault-inspired system with envelope encryption, access policies, audit logging, and auth — giving the team a secure, auditable, self-hosted secrets lifecycle manager.
 
 **Stack:** Go · PostgreSQL · AES-256-GCM · REST API + CLI
 
