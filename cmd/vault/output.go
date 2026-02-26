@@ -1,3 +1,5 @@
+// TODO: revist this file and refactor the code for the outpit stream
+
 package main
 
 import (
