@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Run tests
+        id: tests
+        run: |
+          go test \
+            ./internal/crypto/ \
+            ./internal/policy/ \
+            ./internal/api/ \
+            -v -count=1 -timeout 120s \
+            2>&1 | tee /tmp/test_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Parse test results
+        if: always()
+        id: results
+        run: |
+          PASSED=$(grep -c "^--- PASS" /tmp/test_output.txt || true)
+          FAILED=$(grep -c "^--- FAIL" /tmp/test_output.txt || true)
+          echo "passed=$PASSED"  >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED"  >> "$GITHUB_OUTPUT"
+
+      - name: Build all packages
+        id: build
+        run: go build ./...
+
+      - name: Build server binary
+        run: go build -ldflags="-s -w -X main.version=${{ github.sha }}" -o /tmp/vault-server ./cmd/server
+
+      - name: Build CLI binary
+        run: go build -ldflags="-s -w -X main.version=${{ github.sha }}" -o /tmp/vault ./cmd/vault
+
+      # Write a status JSON so the landing page can read it via the GitHub API
+      - name: Write build status artifact
+        if: always()
+        run: |
+          STATUS="passing"
+          if [ "${{ steps.build.outcome }}" != "success" ]; then STATUS="failing"; fi
+          if [ "${{ steps.tests.outputs.exit_code }}" != "0" ]; then STATUS="failing"; fi
+          cat > status.json << EOF
+          {
+            "build":  "${{ steps.build.outcome == 'success' && 'passing' || 'failing' }}",
+            "tests":  "${{ steps.tests.outputs.exit_code == '0' && 'passing' || 'failing' }}",
+            "passed": "${{ steps.results.outputs.passed }}",
+            "failed": "${{ steps.results.outputs.failed }}",
+            "sha":    "${{ github.sha }}",
+            "run_id": "${{ github.run_id }}",
+            "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat status.json
+
+      - name: Commit status badge back to master
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add status.json
+          # Only commit if the file actually changed
+          if git diff --cached --quiet; then
+            echo "status.json unchanged, skipping commit"
+          else
+            git commit -m "ci: update build status [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## CI Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check  | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Build  | ${{ steps.build.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests passed | ${{ steps.results.outputs.passed }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tests failed | ${{ steps.results.outputs.failed }} |" >> "$GITHUB_STEP_SUMMARY"

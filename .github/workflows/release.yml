@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # e.g. v1.0.0, v1.2.3-rc1
+
+permissions:
+  contents: write   # needed to create a GitHub Release
+  packages: write   # needed to push to GitHub Packages (container registry)
+
+jobs:
+  # ── 1. Run the full test suite before releasing anything ──────────────────
+  test:
+    name: Pre-release tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+      - run: go mod download
+      - run: go test ./internal/crypto/ ./internal/policy/ ./internal/api/ -count=1 -timeout 120s
+
+  # ── 2. Build binaries for all target platforms ────────────────────────────
+  build:
+    name: Build — ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: ""
+          - goos: linux
+            goarch: arm64
+            suffix: ""
+          - goos: darwin
+            goarch: amd64
+            suffix: ""
+          - goos: darwin
+            goarch: arm64
+            suffix: ""
+          - goos: windows
+            goarch: amd64
+            suffix: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Set version variables
+        id: vars
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}"           >> "$GITHUB_OUTPUT"
+          echo "COMMIT=${GITHUB_SHA::8}"              >> "$GITHUB_OUTPUT"
+          echo "BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Build vault-server
+        env:
+          GOOS:   ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build \
+            -trimpath \
+            -ldflags="-s -w \
+              -X main.version=${{ steps.vars.outputs.VERSION }} \
+              -X main.commit=${{ steps.vars.outputs.COMMIT }} \
+              -X main.builtAt=${{ steps.vars.outputs.BUILT_AT }}" \
+            -o "dist/vault-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}" \
+            ./cmd/server
+
+      - name: Build vault CLI
+        env:
+          GOOS:   ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build \
+            -trimpath \
+            -ldflags="-s -w \
+              -X main.version=${{ steps.vars.outputs.VERSION }} \
+              -X main.commit=${{ steps.vars.outputs.COMMIT }} \
+              -X main.builtAt=${{ steps.vars.outputs.BUILT_AT }}" \
+            -o "dist/vault-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}" \
+            ./cmd/vault
+
+      - name: Create archive
+        run: |
+          cd dist
+          ARCHIVE="ctrl-${{ steps.vars.outputs.VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip "${ARCHIVE}.zip" \
+              "vault-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}" \
+              "vault-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }}"
+            echo "ARCHIVE=${ARCHIVE}.zip" >> "$GITHUB_ENV"
+          else
+            tar -czf "${ARCHIVE}.tar.gz" \
+              "vault-server-${{ matrix.goos }}-${{ matrix.goarch }}" \
+              "vault-${{ matrix.goos }}-${{ matrix.goarch }}"
+            echo "ARCHIVE=${ARCHIVE}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum "${{ env.ARCHIVE }}" > "${{ env.ARCHIVE }}.sha256"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  # ── 3. Create the GitHub Release and attach all archives ─────────────────
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Display artifacts
+        run: ls -lh dist/
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          cat > release_notes.md << EOF
+          ## CTRL ${VERSION}
+
+          Self-hosted secrets lifecycle manager.
+
+          ### What's included
+
+          | Binary | Description |
+          |--------|-------------|
+          | \`vault-server\` | API server binary |
+          | \`vault\` | CLI client binary |
+
+          ### Platforms
+
+          | Platform | Archive |
+          |----------|---------|
+          | Linux x86-64  | \`ctrl-${VERSION}-linux-amd64.tar.gz\` |
+          | Linux ARM64   | \`ctrl-${VERSION}-linux-arm64.tar.gz\` |
+          | macOS x86-64  | \`ctrl-${VERSION}-darwin-amd64.tar.gz\` |
+          | macOS ARM64   | \`ctrl-${VERSION}-darwin-arm64.tar.gz\` |
+          | Windows x86-64 | \`ctrl-${VERSION}-windows-amd64.zip\` |
+
+          ### Quick install (Linux amd64)
+
+          \`\`\`bash
+          curl -LO https://github.com/twinc1ty/CTRL/releases/download/${VERSION}/ctrl-${VERSION}-linux-amd64.tar.gz
+          tar -xzf ctrl-${VERSION}-linux-amd64.tar.gz
+          chmod +x vault vault-server
+          sudo mv vault vault-server /usr/local/bin/
+          \`\`\`
+
+          ### Verify checksums
+
+          \`\`\`bash
+          sha256sum -c ctrl-${VERSION}-linux-amd64.tar.gz.sha256
+          \`\`\`
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ github.ref_name }}
+          name:       CTRL ${{ github.ref_name }}
+          body_path:  release_notes.md
+          draft:      false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        run: |
+          echo "## Release ${{ github.ref_name }} published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifacts:" >> "$GITHUB_STEP_SUMMARY"
+          ls dist/*.tar.gz dist/*.zip 2>/dev/null | while read f; do
+            echo "- \`$(basename $f)\`" >> "$GITHUB_STEP_SUMMARY"
+          done
