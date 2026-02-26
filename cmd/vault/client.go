@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+// todo: update or rename secretvalut to ctrl as well as update the commands as well
+
 // Client is an HTTP client for the SecretVault API.
 type Client struct {
 	addr  string
